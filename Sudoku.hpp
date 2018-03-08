@@ -5,10 +5,12 @@
 
 class Sudoku {
 private:
-  std::vector<std::vector<int>> data;
-  std::vector<std::vector<int>> solved;
-  std::vector<std::vector<int>> solution;
+  std::vector<std::vector<int> > data;
+  std::vector<std::vector<int> > solved;
+  std::vector<std::vector<int> > solution;
   std::vector<int> get_avial_inSQ(int sq);
+  int __get_conflicts();
+
 public:
   Sudoku(int size, const char* file_name);
   int evalSolution();
