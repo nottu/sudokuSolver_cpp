@@ -21,7 +21,7 @@ release:
 	$(MAKE) CFLAGS="-O2 -w -c" LFLAGS="-O2"
 
 test_easy: $(EXEC)
-	./$(EXEC) Sudoku_Instances/Easy1.txt 9
+	./$(EXEC) Sudoku_Instances/Easy1.txt 9 2 1
 
 valgrind_easy: $(EXEC)
-	valgrind --track-origins=yes --leak-check=yes ./$(EXEC) Sudoku_Instances/Easy1.txt 9
+	valgrind --track-origins=yes --leak-check=yes ./$(EXEC) Sudoku_Instances/Easy1.txt 9 2 1

@@ -26,10 +26,14 @@ private:
   int  __get_conflicts();
   void __update_solution();
   void __calc_neighbours();
+  void __calc_neighbours_allperm();
+  void __calc_neighbours_allperm_sq(int sq, int mask, int w, std::vector<std::vector<int> > &table, int item, int max_w, std::vector<int> sol);
+  std::vector<std::vector< int> > initdpTable(unsigned size);
 public:
   Sudoku(int size, const char* file_name);
   void randomSolution();
   void localSearch();
+  void extendedLocalSearch();
   int evalSolution();
   void printSolution();
 };
