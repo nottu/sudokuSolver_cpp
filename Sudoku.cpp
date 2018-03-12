@@ -9,6 +9,9 @@
 using namespace std;
 
 Sudoku::Sudoku(int size, const char* file_name) {
+  unsigned seed = 0;
+//  auto seed = chrono::system_clock::now().time_since_epoch().count();
+  srand(seed);
   ifstream ifs(file_name);
   data.reserve((unsigned int)size);
   solved.reserve((unsigned int)size);
@@ -32,10 +35,10 @@ Sudoku::Sudoku(int size, const char* file_name) {
   solution.reserve((unsigned)size);
   solutionidx.reserve((unsigned)size);
   for (int i = 0; i < size; ++i)
-    get_avial_inSQ(i);
+    __get_avial_inSQ(i);
 }
 // returns available numbers in the nth square
-void Sudoku::get_avial_inSQ(int sq){
+void Sudoku::__get_avial_inSQ(int sq){
   auto size  = (int)data.size();
   auto sqLen = (int)sqrt(size);
   vector<int> all_nums; //could use bitset
@@ -80,8 +83,7 @@ int Sudoku::__get_conflicts(){
   }
   return conflicts;
 }
-
-int Sudoku::evalSolution() {
+void Sudoku::__update_solution(){
   //create solution
   auto size = (int)data.size();
   auto sqLen = (int)sqrt(size);
@@ -94,21 +96,22 @@ int Sudoku::evalSolution() {
       if(!data[i_idx][j_idx]) solved[i_idx][j_idx] = solution[i][cnt++];
     }
   }
-  return __get_conflicts();
+}
+int Sudoku::evalSolution() {
+  __update_solution();
+  conflicts = __get_conflicts();
+  return conflicts;
 }
 
 void Sudoku::printSolution() {
   cout<< "conflictos: "<< evalSolution()<<endl;
   auto size = solved.size();
-  auto sqLen = (int)sqrt(size);
   for (int i = 0; i < size; ++i){
-    int cnt = 0;
     for (int j = 0; j < size; ++j){
       cout << solved[i][j] << " ";
     }
     cout << endl;
   }
-  calc_neighbours();
 }
 int Sudoku::__get_conflicts_by_elem(int sq, int item, int val){
   int conflicts = 0;
@@ -133,7 +136,7 @@ int Sudoku::__get_conflicts_by_elem(int sq, int item, int val){
   }
   return conflicts;
 }
-void Sudoku::calc_neighbours(){
+void Sudoku::__calc_neighbours(){
   neighbours.clear();
   auto size = (int)solution.size();
   for (int i = 0; i < size; ++i) {
@@ -153,45 +156,33 @@ void Sudoku::calc_neighbours(){
       }
     }
   }
-  auto seed = 0;// chrono::system_clock::now().time_since_epoch().count();
-  auto rng = std::default_random_engine(seed);
-  shuffle(begin(neighbours), end(neighbours), rng);
 }
 
 void Sudoku::randomSolution(){
   auto size = (int)solution.size();
   unsigned seed = 0; //std::chrono::system_clock::now().time_since_epoch().count();
   auto rng = std::default_random_engine(seed);
-  for (int i = 0; i < size; ++i)
-  {
+  for (int i = 0; i < size; ++i) {
     shuffle(begin(solution[i]), end(solution[i]), rng);
   }
 }
 
 void Sudoku::localSearch(){
-  bool improved = false;
-  int best = evalSolution();
+  evalSolution();
   int iter = 0;
   do {
     iter++;
-    calc_neighbours();
+    __calc_neighbours();
     auto size_neighbours = neighbours.size();
-    if(size_neighbours == 0) break; //no improving...
-    for (int i = 0; i < size_neighbours; ++i)
-    {
-      int sq = neighbours[i].get_square();
-      vector<int> tmp = solution[sq];
-      solution[sq] = neighbours[i].get_neighbour();
-      int new_fit = evalSolution();
-      if( new_fit < best){
-        best = new_fit;
-        improved = true;
-        break;
-      }
-      improved = false;
-      solution[sq] = tmp;
-    }
-  } while(improved);
+    if(size_neighbours == 0) break; //no improvement
+    auto i = rand() % size_neighbours; //look into using c++11 random lib
+    int sq = neighbours[i].get_square();
+    vector<int> tmp = solution[sq];
+    solution[sq] = neighbours[i].get_neighbour();
+    int dif = neighbours[i].get_eval();
+    __update_solution();
+    conflicts -= dif;
+  } while(iter < 10000);
   cout<<"Iteraciones de busqueda local: " << iter << endl;
 }
 int SolutionNeighbour::get_square(){
