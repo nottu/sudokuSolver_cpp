@@ -1,6 +1,6 @@
 
-CPP=g++
-CFLAGS=-w -c -g
+CPP=g++-7
+CFLAGS=-w -c -g -std=c++11
 LFLAGS=-g
 EXEC=sudoku
 CPPS:=$(wildcard *.cpp)
