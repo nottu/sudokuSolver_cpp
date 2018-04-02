@@ -8,10 +8,10 @@
 
 using namespace std;
 
-Sudoku::Sudoku(int size, const char* file_name) {
-//  unsigned seed = 0;
-  auto seed = chrono::system_clock::now().time_since_epoch().count();
-  srand(seed);
+Sudoku::Sudoku(int size, const char* file_name, bool isDebug) {
+  _debugMode = isDebug;
+  _seed = isDebug ? 0 : chrono::system_clock::now().time_since_epoch().count();
+  srand(_seed);
   ifstream ifs(file_name);
   data.reserve((unsigned int)size);
   solved.reserve((unsigned int)size);
@@ -30,6 +30,9 @@ Sudoku::Sudoku(int size, const char* file_name) {
       solved.emplace_back(vs);
     }
     ifs.close();
+  } else{
+    cout << "Can't open file "<<file_name<<endl;
+    exit(1);
   }
   //init solution
   solution.reserve((unsigned)size);
@@ -100,7 +103,6 @@ void Sudoku::__update_solution(){
 int Sudoku::evalSolution() {
   __update_solution();
   return __get_conflicts();
-//  return conflicts;
 }
 
 void Sudoku::printSolution() {
@@ -149,7 +151,7 @@ vector<vector< int> > Sudoku::initdpTable(unsigned size){
   }
   return dptable;
 }
-void Sudoku::__calc_neighbours_allperm_sq(int sq, int mask, int w, vector<vector<int> > &dptable, int item, int max_w, vector<int> s_n){
+void Sudoku::__calc_neighbours_allperm_sq(int sq, int mask, int w, int item, int max_w, vector<int> &s_n){
   auto size = (unsigned)solution[sq].size();
   for (int i = 0; i < size; ++i) {
     int v = 1 << i;
@@ -164,10 +166,11 @@ void Sudoku::__calc_neighbours_allperm_sq(int sq, int mask, int w, vector<vector
     s_n[item] = solution[sq][i];
     int mx = (1<<size)- 1;
     if(n_mask < mx && new_w < max_w)
-      __calc_neighbours_allperm_sq(sq, n_mask, new_w, dptable, item + 1, max_w, s_n);
+      __calc_neighbours_allperm_sq(sq, n_mask, new_w, item + 1, max_w, s_n);
     else{
-      if (new_w < max_w)
+      if (new_w < max_w){
         neighbours.emplace_back(SolutionNeighbour(sq, s_n, max_w - new_w ));
+      }
     }
   }
 }
@@ -176,22 +179,24 @@ void Sudoku::__calc_neighbours_allperm(){
   auto size = (unsigned)solution.size();
   for (int i = 0; i < size; ++i) {
     auto v_size = (unsigned)solution[i].size();
-    vector<vector< int> > dptable = initdpTable(v_size);
+    dptable = initdpTable(v_size);
     int max_w = 0;
     for (int j = 0; j < v_size; ++j) {
       dptable[j][j] = __get_conflicts_by_elem(i, solutionidx[i][j], solution[i][j]);
       max_w += dptable[j][j];
     }
     vector<int> s_n(solution[i]);
-    __calc_neighbours_allperm_sq(i, 0, 0, dptable, 0, max_w, s_n);
+    __calc_neighbours_allperm_sq(i, 0, 0, 0, max_w, s_n);
+    dptable.clear();
   }
 }
-void Sudoku::__calc_neighbours(){
+void Sudoku::__calc_neighbours(bool addBad){
   neighbours.clear();
   auto size = (int)solution.size();
   for (int i = 0; i < size; ++i) {
     auto v_size = (unsigned)solution[i].size();
-    vector<vector< int> > dptable = initdpTable(v_size);
+    dptable.clear();
+    dptable = initdpTable(v_size);
     for (int j = 0; j < v_size - 1; ++j) {
       for (int k = j+1; k < v_size; ++k) {
         //can be improved with dynamic programming, we check items n times, only 1 is actually needed
@@ -212,19 +217,21 @@ void Sudoku::__calc_neighbours(){
 
         int conf   = dptable[j][k];
         int conf2  = dptable[k][j];
-        if((conf_o1 + conf_o2) <= (conf + conf2)) continue; //dont add bad neighbouts
+        if(!addBad && (conf_o1 + conf_o2) <= (conf + conf2)) continue; //dont add bad neighbouts
         vector<int> s_n(solution[i]);
         s_n[j] = solution[i][k]; s_n[k] = solution[i][j]; //swap
         neighbours.emplace_back(SolutionNeighbour(i, s_n, (conf_o1 + conf_o2) - (conf + conf2) ));
       }
     }
   }
+  if(!addBad) return; //don't shuffle if no 'bad neighbours' where added
+  auto rng = std::default_random_engine(_seed);
+  shuffle(begin(neighbours), end(neighbours), rng);
 }
 
 void Sudoku::randomSolution(){
   auto size = (int)solution.size();
-  auto seed = (unsigned)chrono::system_clock::now().time_since_epoch().count();
-  auto rng = std::default_random_engine(seed);
+  auto rng = std::default_random_engine(_seed);
   for (int i = 0; i < size; ++i) {
     shuffle(begin(solution[i]), end(solution[i]), rng);
   }
@@ -267,6 +274,38 @@ void Sudoku::extendedLocalSearch(){
   } while(iter < 10000);
 //  cout<<"Iteraciones de busqueda local: " << iter << endl;
 }
+
+void Sudoku::simmulatedAnnealing(int total_time, double intial_temp){
+  const clock_t begin_time = clock();
+  conflicts = evalSolution();
+  double temp;
+  int time = total_time;
+  while (time && conflicts > 0){
+    time = total_time - 1000 * int(double( clock () - begin_time ) /  CLOCKS_PER_SEC);
+    time = time > 0 ? time : 0;
+//    cout << time <<endl;
+    temp = double(time)/double(total_time) * intial_temp; //will linearly go to 0
+    __calc_neighbours(true);
+    auto size_neighbours = neighbours.size();
+    for (int i = 0; i < size_neighbours; ++i){
+      int dif = neighbours[i].get_eval();
+      if(dif <= 0){
+        if(exp((dif - 1) / temp) < ((double) rand() / (RAND_MAX)))
+          continue; //with certain probability
+//        cout << "accepted bad"<<endl;
+      }
+      int sq = neighbours[i].get_square();
+      solution[sq] = neighbours[i].get_neighbour();
+      __update_solution();
+      conflicts -= dif;
+      cout << conflicts <<"\tT\t"<<temp<< endl;
+      break;
+    }
+  }
+}
+
+
+
 int SolutionNeighbour::get_square(){
   return square;
 }

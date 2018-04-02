@@ -25,3 +25,6 @@ test_easy: $(EXEC)
 
 valgrind_easy: $(EXEC)
 	valgrind --track-origins=yes --leak-check=yes ./$(EXEC) Sudoku_Instances/Easy1.txt 9 2 1
+
+valgrind_easy16: $(EXEC)
+	valgrind --track-origins=yes --leak-check=yes ./$(EXEC) Sudoku_Instances/Easy16.txt 16 2 1

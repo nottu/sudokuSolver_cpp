@@ -4,3 +4,11 @@ obj/
 *.plist
 sudoku.dSYM/
 *.txt
+.DS_Store
+*.ipynb
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.gz
+sudoku
