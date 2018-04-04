@@ -275,33 +275,37 @@ void Sudoku::extendedLocalSearch(){
 //  cout<<"Iteraciones de busqueda local: " << iter << endl;
 }
 
-void Sudoku::simmulatedAnnealing(int total_time, double intial_temp){
+void Sudoku::simmulatedAnnealing(int total_time, double intial_temp, ofstream &out){
   const clock_t begin_time = clock();
+  int last_written = 1000 * double(clock()) / CLOCKS_PER_SEC;
   conflicts = evalSolution();
-  double temp;
+  double temp = intial_temp;
   int time = total_time;
+  out << conflicts << "\t" << temp <<  endl;
   while (time && conflicts > 0){
     time = total_time - 1000 * int(double( clock () - begin_time ) /  CLOCKS_PER_SEC);
     time = time > 0 ? time : 0;
-//    cout << time <<endl;
-    temp = double(time)/double(total_time) * intial_temp; //will linearly go to 0
+    // temp = pow(double(time)/double(total_time), 2) * intial_temp; //will cuadratically go to 0
+    temp = (double(time)/double(total_time)) * intial_temp; //will linearly go to 0
     __calc_neighbours(true);
     auto size_neighbours = neighbours.size();
     for (int i = 0; i < size_neighbours; ++i){
       int dif = neighbours[i].get_eval();
-      if(dif <= 0){
-        if(exp((dif - 1) / temp) < ((double) rand() / (RAND_MAX)))
-          continue; //with certain probability
-//        cout << "accepted bad"<<endl;
-      }
+      if(dif <= 0 && exp((dif - 1) / temp) < ((double) rand() / (RAND_MAX))) continue;
       int sq = neighbours[i].get_square();
       solution[sq] = neighbours[i].get_neighbour();
       __update_solution();
       conflicts -= dif;
-      cout << conflicts <<"\tT\t"<<temp<< endl;
+      int time_since = 1000 * int(double( clock () ) /  CLOCKS_PER_SEC);
+      if (time_since - last_written >= 1000*60*2 - 50){ //every two minutes
+        last_written = 1000 * double(clock()) / CLOCKS_PER_SEC;
+        out << conflicts << "\t" << temp <<  endl;
+      }
       break;
     }
   }
+  out << conflicts << "\t" << temp <<  endl;
+  out << "TIME:\t" << 1000 * int(double( clock () - begin_time ) /  CLOCKS_PER_SEC)<<endl;
 }
 
 

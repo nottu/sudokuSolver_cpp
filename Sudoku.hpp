@@ -43,6 +43,6 @@ public:
   void localSearch();
   void extendedLocalSearch();
   //trajectory metaheuristics
-  void simmulatedAnnealing(int time, double temp); //time in millis
+  void simmulatedAnnealing(int time, double temp, std::ofstream &out); //time in millis
 };
 #endif
